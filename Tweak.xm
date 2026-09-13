@@ -14,7 +14,7 @@
 
 @interface MTAAlarmTableViewController : UITableViewController <UISearchResultsUpdating>
 @property (nonatomic, strong, retain) MTAlarmDataSource *dataSource;
-// %properties
+// custom %properties
 @property (nonatomic, retain) UISearchController *as_searchController;
 @property (nonatomic, retain) NSArray *as_originalIndexPaths;
 @end
@@ -35,6 +35,17 @@ static NSIndexPath *originalIndexPathForVisibleRow(MTAAlarmTableViewController *
 	}
 
 	return vc.as_originalIndexPaths[(NSUInteger)indexPath.row];
+}
+
+static NSIndexPath *visibleIndexPathForOriginalRow(MTAAlarmTableViewController *vc, NSIndexPath *indexPath) {
+	if (!isFiltering(vc)) return indexPath;
+
+	if (indexPath.section != kAlarmSection) return nil;
+
+	NSUInteger row = [vc.as_originalIndexPaths indexOfObject:indexPath];
+	if (row == NSNotFound) return nil;
+
+	return [NSIndexPath indexPathForRow:(NSInteger)row inSection:indexPath.section];
 }
 
 static NSArray *reloadFilter(MTAAlarmTableViewController *vc) {
@@ -95,6 +106,10 @@ static NSArray *reloadFilter(MTAAlarmTableViewController *vc) {
 	%orig(tableView, originalIndexPathForVisibleRow(self, indexPath));
 }
 
+-(void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
+	%orig(tableView, editingStyle, originalIndexPathForVisibleRow(self, indexPath));
+}
+
 -(CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
 	return isFiltering(self) && section != kAlarmSection ? CGFLOAT_MIN : %orig;
 }
@@ -112,8 +127,28 @@ static NSArray *reloadFilter(MTAAlarmTableViewController *vc) {
 }
 %end
 
-/* fix crash when renaming a filtered alarm */
 %hook UITableView
+// fix crash when deleting a filtered alarm
+-(void)deleteRowsAtIndexPaths:(NSArray<NSIndexPath *> *)indexPaths withRowAnimation:(UITableViewRowAnimation)animation {
+	MTAAlarmTableViewController *vc = (MTAAlarmTableViewController *)self.delegate;
+
+	if ([vc isKindOfClass:%c(MTAAlarmTableViewController)] && isFiltering(vc)) {
+		NSMutableArray *visibleIndexPaths = [NSMutableArray arrayWithCapacity:indexPaths.count];
+		for (NSIndexPath *indexPath in indexPaths) {
+			NSIndexPath *visibleIndexPath = visibleIndexPathForOriginalRow(vc, indexPath);
+			if (visibleIndexPath) [visibleIndexPaths addObject:visibleIndexPath];
+		}
+
+		if (!visibleIndexPaths.count) return;
+
+		%orig(visibleIndexPaths, animation);
+		return;
+	}
+
+	%orig;
+}
+
+// fix crash when renaming a filtered alarm
 -(void)scrollToRowAtIndexPath:(NSIndexPath *)indexPath atScrollPosition:(UITableViewScrollPosition)position animated:(BOOL)animated {
 	MTAAlarmTableViewController *vc = (MTAAlarmTableViewController *)self.delegate;
 
