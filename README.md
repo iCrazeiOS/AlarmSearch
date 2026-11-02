@@ -1,17 +1,12 @@
 # AlarmSearch
 
-Theos tweak for the iOS Clock app (`com.apple.mobiletimer`) that adds a native search bar to `MTAAlarmTableViewController` and filters alarms by their label/title.
+iOS jailbreak tweak that adds a search bar to the Clock app's alarm list
 
 ## Build
 
 ```sh
+# for rootful jailbreaks
 make package
+# for rootless jailbreaks
+make package THEOS_PACKAGE_SCHEME=rootless
 ```
-
-Install the package on the device, then restart the Clock app.
-
-The tweak was written against the iOS 16.6.1 decompilation clues:
-
-- `MTAlarmDataSource` exposes `numberOfAlarms` and `alarmAtRow:`.
-- `MTAlarm` exposes `title` and `displayTitle`.
-- The target controller is `MTAAlarmTableViewController` inside the Clock app process.
