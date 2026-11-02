@@ -17,6 +17,24 @@
 // custom %properties
 @property (nonatomic, retain) UISearchController *as_searchController;
 @property (nonatomic, retain) NSArray *as_originalIndexPaths;
+-(void)setAlarmEnabled:(BOOL)enabled forCell:(UITableViewCell *)cell;
+@end
+
+// The original toggle uses indexPathForCell: (a filtered row) to index into the
+// unfiltered data source. Feed it the alarm for the cell instead.
+@interface ASAlarmDataSourceProxy : NSObject
+@property (nonatomic, strong) MTAlarmDataSource *target;
+@property (nonatomic, strong) MTAlarm *alarm;
+@end
+
+@implementation ASAlarmDataSourceProxy
+-(MTAlarm *)alarmAtRow:(NSUInteger)row {
+	return self.alarm;
+}
+
+-(id)forwardingTargetForSelector:(SEL)selector {
+	return self.target;
+}
 @end
 
 static NSString *alarmTitle(MTAlarm *alarm) {
@@ -108,6 +126,23 @@ static NSArray *reloadFilter(MTAAlarmTableViewController *vc) {
 
 -(void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
 	%orig(tableView, editingStyle, originalIndexPathForVisibleRow(self, indexPath));
+}
+
+-(void)setAlarmEnabled:(BOOL)enabled forCell:(UITableViewCell *)cell {
+	if (!isFiltering(self) || !self.dataSource) {
+		%orig;
+		return;
+	}
+
+	NSIndexPath *indexPath = originalIndexPathForVisibleRow(self, [self.tableView indexPathForCell:cell]);
+	MTAlarmDataSource *dataSource = self.dataSource;
+	ASAlarmDataSourceProxy *proxy = [[ASAlarmDataSourceProxy alloc] init];
+	proxy.target = dataSource;
+	proxy.alarm = [dataSource alarmAtRow:(NSUInteger)indexPath.row];
+
+	self.dataSource = (MTAlarmDataSource *)proxy;
+	%orig(enabled, cell);
+	self.dataSource = dataSource;
 }
 
 -(CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
