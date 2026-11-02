@@ -1,6 +1,6 @@
 Package: com.icraze.alarmsearch
 Name: AlarmSearch
-Version: 1.0
+Version: 1.1
 Architecture: iphoneos-arm
 Description: Adds a search bar to the Clock app alarm list
 Maintainer: iCraze
